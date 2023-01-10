@@ -1,76 +1,77 @@
-import { createGlobalStyle } from "styled-components";
-import { DragDropContext, Draggable, Droppable } from "react-beautiful-dnd";
+import { DragDropContext, DropResult } from "react-beautiful-dnd";
+import styled from "styled-components";
+import { useRecoilState } from "recoil";
+import { toDoState } from "./atoms";
+import Board from "./Components/Board";
 
-const GlobalStyle = createGlobalStyle`
-html, body, div, span, applet, object, iframe,
-h1, h2, h3, h4, h5, h6, p, blockquote, pre,
-a, abbr, acronym, address, big, cite, code,
-del, dfn, em, img, ins, kbd, q, s, samp,
-small, strike, strong, sub, sup, tt, var,
-b, u, i, center,
-dl, dt, dd, menu, ol, ul, li,
-fieldset, form, label, legend,
-table, caption, tbody, tfoot, thead, tr, th, td,
-article, aside, canvas, details, embed,
-figure, figcaption, footer, header, hgroup,
-main, menu, nav, output, ruby, section, summary,
-time, mark, audio, video {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  font-size: 100%;
-  font: inherit;
-  vertical-align: baseline;
-}
-/* HTML5 display-role reset for older browsers */
-article, aside, details, figcaption, figure,
-footer, header, hgroup, main, menu, nav, section {
-  display: block;
-}
-/* HTML5 hidden-attribute fix for newer browsers */
-*[hidden] {
-    display: none;
-}
-body {
-  line-height: 1;
-}
-menu, ol, ul {
-  list-style: none;
-}
-blockquote, q {
-  quotes: none;
-}
-blockquote:before, blockquote:after,
-q:before, q:after {
-  content: '';
-  content: none;
-}
-table {
-  border-collapse: collapse;
-  border-spacing: 0;
-}
+const Wrapper = styled.div`
+  display: flex;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+`;
+
+const Boards = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+  gap: 10px;
 `;
 
 function App() {
-  const onDragEnd = () => {};
+  const [toDos, setToDos] = useRecoilState(toDoState);
+
+  // 드래그가 끝났을 때 움직이는 함수
+  const onDragEnd = (info: DropResult) => {
+    console.log(info);
+    const { destination, source, draggableId } = info;
+    if (!destination) return;
+    if (source.droppableId === destination?.droppableId) {
+      setToDos((prev) => {
+        const boardCopy = [...prev[source.droppableId]];
+        // 선택한 '객체'를 가져오는 것
+        // source.index = 선택한 객체의 id
+        const tastObj = boardCopy[source.index];
+        boardCopy.splice(source.index, 1);
+        // 선택한 객체를 삽입할 목표지점
+        boardCopy.splice(destination?.index, 0, tastObj);
+        return {
+          ...prev,
+          [source.droppableId]: boardCopy,
+        };
+      });
+    }
+    // 다른 보드로 이동시킬 때
+    if (source.droppableId !== destination?.droppableId) {
+      setToDos((prev) => {
+        const sourceBoard = [...prev[source.droppableId]];
+        // 선택한 '객체'를 가져오는 것
+        // source.index = 선택한 객체의 id
+        const tastObj = sourceBoard[source.index];
+        const destinationBoard = [...prev[destination.droppableId]];
+        sourceBoard.splice(source.index, 1);
+        destinationBoard.splice(destination?.index, 0, tastObj);
+        return {
+          ...prev,
+          [source.droppableId]: sourceBoard,
+          [destination.droppableId]: destinationBoard,
+        };
+      });
+    }
+  };
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div>
-        {/* // Droppable의 요소는 react 엘리먼트이면 안된다 */}
-        <Droppable droppableId="one">
-          {() => (
-            <ul>
-              <Draggable draggableId="first" index={0}>
-                {() => <li>one</li>}
-              </Draggable>
-              <Draggable draggableId="second" index={1}>
-                {() => <li>two</li>}
-              </Draggable>
-            </ul>
-          )}
-        </Droppable>
-      </div>
+      <Wrapper>
+        <Boards>
+          {Object.keys(toDos).map((boardId) => (
+            <Board boardId={boardId} key={boardId} toDos={toDos[boardId]} />
+          ))}
+        </Boards>
+      </Wrapper>
     </DragDropContext>
   );
 }
